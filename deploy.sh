@@ -43,13 +43,13 @@ echo "Deploying n8n main container..."
 docker run -d \
   --name ${PROJECT_NAME} \
   --restart unless-stopped \
-  --network traefik-proxy \
+  --network traefik-net \
   --env-file /home/administrator/secrets/${PROJECT_NAME}.env \
   -e N8N_EDITOR_BASE_URL=https://n8n.ai-servicers.com \
   -v /home/administrator/projects/data/n8n:/home/node/.n8n \
   -p 5678:5678 \
   --label "traefik.enable=true" \
-  --label "traefik.docker.network=traefik-proxy" \
+  --label "traefik.docker.network=traefik-net" \
   --label "traefik.http.routers.${PROJECT_NAME}.rule=Host(\`${PROJECT_NAME}.ai-servicers.com\`)" \
   --label "traefik.http.routers.${PROJECT_NAME}.entrypoints=websecure" \
   --label "traefik.http.routers.${PROJECT_NAME}.tls.certresolver=letsencrypt" \
@@ -61,7 +61,7 @@ echo "Deploying n8n worker container..."
 docker run -d \
   --name ${PROJECT_NAME}-worker \
   --restart unless-stopped \
-  --network traefik-proxy \
+  --network traefik-net \
   --env-file /home/administrator/secrets/${PROJECT_NAME}.env \
   -v /home/administrator/projects/data/n8n:/home/node/.n8n \
   n8nio/n8n:latest \
