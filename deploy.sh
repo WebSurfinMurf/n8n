@@ -38,6 +38,12 @@ mkdir -p /home/administrator/projects/data/n8n
 # We'll let n8n create its own subdirectory
 chmod 777 /home/administrator/projects/data/n8n
 
+# Create networks first
+echo "Creating networks if they don't exist..."
+docker network create traefik-net 2>/dev/null || true
+docker network create postgres-net 2>/dev/null || true
+docker network create redis-net 2>/dev/null || true
+
 # Deploy main n8n container (web and webhook processes)
 echo "Deploying n8n main container..."
 docker run -d \
@@ -56,23 +62,25 @@ docker run -d \
   --label "traefik.http.services.${PROJECT_NAME}.loadbalancer.server.port=5678" \
   n8nio/n8n:latest
 
+# Connect to required networks BEFORE container fully starts
+echo "Connecting main container to required networks..."
+docker network connect postgres-net ${PROJECT_NAME}
+docker network connect redis-net ${PROJECT_NAME}
+
 # Deploy worker container for queue mode
 echo "Deploying n8n worker container..."
 docker run -d \
   --name ${PROJECT_NAME}-worker \
   --restart unless-stopped \
-  --network traefik-net \
+  --network postgres-net \
   --env-file /home/administrator/secrets/${PROJECT_NAME}.env \
   -v /home/administrator/projects/data/n8n:/home/node/.n8n \
   n8nio/n8n:latest \
   worker
 
-# Connect to required networks
-echo "Connecting to required networks..."
-docker network connect postgres-net ${PROJECT_NAME} 2>/dev/null || echo "Already connected to postgres-net"
-docker network connect postgres-net ${PROJECT_NAME}-worker 2>/dev/null || echo "Worker already connected to postgres-net"
-docker network connect redis-net ${PROJECT_NAME} 2>/dev/null || echo "Already connected to redis-net"
-docker network connect redis-net ${PROJECT_NAME}-worker 2>/dev/null || echo "Worker already connected to redis-net"
+# Connect worker to Redis network
+echo "Connecting worker to redis-net..."
+docker network connect redis-net ${PROJECT_NAME}-worker
 
 # Wait for startup
 echo "Waiting for n8n to start..."
